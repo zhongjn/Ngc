@@ -71,6 +71,10 @@ namespace Ngc
             {
                 s = sIf;
             }
+            else if (Reset(save) && WhileStmt(out Statement sWhile))
+            {
+                s = sWhile;
+            }
             else if (Reset(save) && RetStmt(out Statement sRet))
             {
                 s = sRet;
@@ -165,7 +169,32 @@ namespace Ngc
                 }
                 else
                 {
-                    ParseError("If condition syntax error. Expect an expression with parens around.");
+                    ParseError("'if' condition syntax error. Expect an expression with parens around.");
+                }
+            }
+            return s != null;
+        }
+
+        private bool WhileStmt(out Statement s)
+        {
+            s = null;
+            if (Consume("while"))
+            {
+                if (Consume("(") && Expr(out Expression eCond) && Consume(")"))
+                {
+                    if (Stmt(out Statement sBody))
+                    {
+                        var whileStmt = new WhileStmt { Condition = eCond, Body = sBody  };
+                        s = whileStmt;
+                    }
+                    else
+                    {
+                        ParseError("Expect a loop body.");
+                    }
+                }
+                else
+                {
+                    ParseError("'while' condition syntax error. Expect an expression with parens around.");
                 }
             }
             return s != null;

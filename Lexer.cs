@@ -68,7 +68,7 @@ namespace Ngc
         private static Regex CompiledRegex(string pattern) => new Regex(pattern, RegexOptions.Compiled);
         private static Dictionary<TokenType, Regex> m_TokenRegex = new Dictionary<TokenType, Regex>() {
             { TokenType.Literal, CompiledRegex("\\G(([0-9]+(\\.[0-9]+)?)|(\"([^\\\"]|\\.)*\"))") },
-            { TokenType.Keyword, CompiledRegex("\\G(if|else|while|for|break|return)") },
+            { TokenType.Keyword, CompiledRegex("\\G(if|else|while|break|return)") },
             { TokenType.Identifier, CompiledRegex("\\G[a-zA-Z_][a-zA-Z0-9_]*") },
             { TokenType.Space, CompiledRegex("\\G(\\s|\\t|\\n)+") },
             { TokenType.Seperator, CompiledRegex("\\G[,;\\(\\)\\[\\]\\{\\}]") },

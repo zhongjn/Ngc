@@ -11,6 +11,7 @@ namespace Ngc
         private Dictionary<VariableSymbol, LLVMValueRef> m_VariablePointers;
         private Dictionary<FunctionSymbol, LLVMValueRef> m_FunctionPointers;
         private Dictionary<TypeSymbol, LLVMTypeRef> m_Types;
+        private Dictionary<Statement, LLVMBasicBlockRef> m_BreakableStatementSuccessor;
         private LLVMModuleRef m_Module;
         private LLVMValueRef m_Function;
         private LLVMBuilderRef m_Builder;
@@ -20,6 +21,7 @@ namespace Ngc
             m_VariablePointers = new Dictionary<VariableSymbol, LLVMValueRef>();
             m_FunctionPointers = new Dictionary<FunctionSymbol, LLVMValueRef>();
             m_Types = new Dictionary<TypeSymbol, LLVMTypeRef>();
+            m_BreakableStatementSuccessor = new Dictionary<Statement, LLVMBasicBlockRef>();
 
             m_Module = LLVM.ModuleCreateWithName("test");
             m_Builder = LLVM.CreateBuilder();
@@ -186,21 +188,21 @@ namespace Ngc
                         LLVMValueRef i32 = VisitExpr(ifs.Condition);
                         LLVMValueRef cond = I32ToCond(i32);
 
-                        LLVMBasicBlockRef bbTrue = LLVM.AppendBasicBlock(m_Function, "br_true");
-                        LLVMBasicBlockRef bbFalse = LLVM.AppendBasicBlock(m_Function, "br_false");
-                        LLVMBasicBlockRef bbAfter = LLVM.AppendBasicBlock(m_Function, "after_if");
+                        LLVMBasicBlockRef bbTrue = LLVM.AppendBasicBlock(m_Function, "if_true");
+                        LLVMBasicBlockRef bbFalse = LLVM.AppendBasicBlock(m_Function, "if_false");
+                        LLVMBasicBlockRef bbSucc = LLVM.AppendBasicBlock(m_Function, "if_succ");
 
                         LLVM.BuildCondBr(m_Builder, cond, bbTrue, bbFalse);
 
                         LLVM.PositionBuilderAtEnd(m_Builder, bbTrue);
                         VisitStmt(ifs.True, out bool termTrue);
-                        if (!termTrue) LLVM.BuildBr(m_Builder, bbAfter);
+                        if (!termTrue) LLVM.BuildBr(m_Builder, bbSucc);
 
                         LLVM.PositionBuilderAtEnd(m_Builder, bbFalse);
                         VisitStmt(ifs.False, out bool termFalse);
-                        if (!termFalse) LLVM.BuildBr(m_Builder, bbAfter);
+                        if (!termFalse) LLVM.BuildBr(m_Builder, bbSucc);
 
-                        LLVM.PositionBuilderAtEnd(m_Builder, bbAfter);
+                        LLVM.PositionBuilderAtEnd(m_Builder, bbSucc);
                         break;
                     }
 
@@ -219,9 +221,33 @@ namespace Ngc
                         break;
                     }
 
+                case WhileStmt wh:
+                    {
+                        LLVMBasicBlockRef bbCond = LLVM.AppendBasicBlock(m_Function, "while_cond");
+                        LLVMBasicBlockRef bbBody = LLVM.AppendBasicBlock(m_Function, "while_body");
+                        LLVMBasicBlockRef bbSucc = LLVM.AppendBasicBlock(m_Function, "while_succ");
+                        m_BreakableStatementSuccessor.Add(wh, bbSucc);
+
+                        LLVM.BuildBr(m_Builder, bbCond);
+
+                        LLVM.PositionBuilderAtEnd(m_Builder, bbCond);
+                        LLVMValueRef i32 = VisitExpr(wh.Condition);
+                        LLVMValueRef cond = I32ToCond(i32);
+                        LLVM.BuildCondBr(m_Builder, cond, bbBody, bbSucc);
+
+                        LLVM.PositionBuilderAtEnd(m_Builder, bbBody);
+                        VisitStmt(wh.Body, out bool term);
+                        if (!term) LLVM.BuildBr(m_Builder, bbCond);
+
+                        LLVM.PositionBuilderAtEnd(m_Builder, bbSucc);
+                        break;
+                    }
+
                 case BreakStmt brk:
                     {
-                        throw new NotImplementedException();
+                        terminate = true;
+                        LLVM.BuildBr(m_Builder, m_BreakableStatementSuccessor[brk.Host]);
+                        break;
                     }
 
                 case ExpressionStmt exprStmt:

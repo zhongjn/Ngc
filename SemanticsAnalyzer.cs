@@ -219,7 +219,7 @@ namespace Ngc
                         vd.Symbol = sym;
 
                         VisitExpr(vd.Assignment);
-                        vd.Assignment = EliminateImplicitConv(vd.Assignment, vd.Type.Symbol);
+                        if (vd.Assignment != null) vd.Assignment = EliminateImplicitConv(vd.Assignment, vd.Type.Symbol);
 
                         break;
                     }
@@ -258,10 +258,26 @@ namespace Ngc
                         break;
                     }
 
+                case WhileStmt wh:
+                    {
+                        VisitExpr(wh.Condition);
+                        wh.Condition = EliminateImplicitConv(wh.Condition, FindSymbol(CPrimitiveType.Int));
+                        wh.Body.ScopeSymbols = new SymbolTable();
+                        VisitStmt(wh.Body);
+                        break;
+                    }
+
                 case BreakStmt brk:
                     {
-                        // TODO
-                        throw new NotImplementedException();
+                        foreach (var st in m_StmtStack)
+                        {
+                            if (st is WhileStmt)
+                            {
+                                brk.Host = st;
+                                break;
+                            }
+                        }
+                        if (brk.Host == null) SemanticsError("A 'break' statement may only be used within a 'while' statement.");
                         break;
                     }
 

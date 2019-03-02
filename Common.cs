@@ -135,9 +135,15 @@ namespace Ngc
         public Expression Value { get; set; }
     }
 
+    public class WhileStmt : Statement
+    {
+        public Expression Condition { get; set; }
+        public Statement Body { get; set; }
+    }
+
     public class BreakStmt : Statement
     {
-
+        public Statement Host { get; set; }
     }
 
     public class ExpressionStmt : Statement
